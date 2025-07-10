@@ -8,8 +8,8 @@ IBKR_CLIENT_ID = 1
 
 # --- API Keys ---
 # IMPORTANT: Replace with your actual key.
-ALPHA_VANTAGE_API_KEY = '5QLBCYY6GNAAOMEF'
-POLYGON_API_KEY = '7pQejAkZ_V2KNeiBQjDjhI1b2PCOAaIX'
+ALPHA_VANTAGE_API_KEY = 'Your_Alpha_Vantage_API_Key_Here'
+POLYGON_API_KEY = 'Your_Polygon_API_Key_Here'
 
 
 # === TRADING STRATEGY PARAMETERS ===
