@@ -6,11 +6,14 @@ curl_cffi==0.11.4
 frozendict==2.4.6
 ibapi==9.81.1.post1
 idna==3.10
+lxml==6.0.0
 multitasking==0.0.11
 numpy==2.3.1
 pandas==2.3.0
+pandas-datareader==0.10.0
 peewee==3.18.1
 platformdirs==4.3.8
+polygon-api-client==1.15.1
 protobuf==6.31.1
 pycparser==2.22
 python-dateutil==2.9.0.post0
@@ -22,5 +25,5 @@ soupsieve==2.7
 typing_extensions==4.14.0
 tzdata==2025.2
 urllib3==2.5.0
-websockets==15.0.1
+websockets==14.2
 yfinance==0.2.64

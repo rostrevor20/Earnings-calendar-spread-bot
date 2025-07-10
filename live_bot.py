@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pytz
 import yfinance as yf
 import pandas as pd
-import config # Import the new config file
+import config 
 
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
@@ -13,14 +13,13 @@ from ibapi.order import Order
 from ibapi.ticktype import TickTypeEnum
 
 from scanner import scan_stock
-from earnings_calendar import get_upcoming_earnings
-
-# All configuration is now in config.py, so the settings section is removed.
+from live_earnings_calendar import get_upcoming_earnings
 
 # Global trade schedule
 trade_schedule = []
 
 class IBKRBot(EWrapper, EClient):
+    # ... (The IBKRBot class remains exactly the same as before) ...
     """ The main class for handling the connection and trading logic with Interactive Brokers. """
     def __init__(self):
         EClient.__init__(self, self)
@@ -140,35 +139,38 @@ def create_bag_contract(ticker):
 
 def populate_trade_schedule(bot):
     print("Populating trade schedule for the week...")
-    tickers = get_upcoming_earnings()
-    if not tickers:
-        print("No tickers found with upcoming earnings.")
+    events = get_upcoming_earnings()
+    if not events:
+        print("No upcoming earnings found from Polygon.io.")
         return
-    for ticker in tickers:
+
+    for event in events:
+        ticker = event['ticker']
         print(f"\n--- Scanning {ticker} for schedule ---")
-        scan_result = scan_stock(ticker) # Simplified call
+        scan_result = scan_stock(ticker)
         if scan_result.get('error') or scan_result['recommendation'] != 'Recommended':
             print(f"Skipping {ticker}: {scan_result.get('error', 'Not Recommended')}")
             continue
         try:
-            stock = yf.Ticker(ticker)
-            calendar_data = stock.calendar
-            if not isinstance(calendar_data, pd.DataFrame) or calendar_data.empty:
-                print(f"No valid earnings calendar data found for {ticker}. Skipping.")
-                continue
-            next_earnings_date = calendar_data.iloc[0,0]
-            if isinstance(next_earnings_date, str):
-                next_earnings_date = datetime.strptime(next_earnings_date, '%Y-%m-%d')
-            earnings_day = next_earnings_date.date()
+            # The earnings date and time now come directly from our calendar function
+            earnings_day = event['report_date']
+            # Timing: 'amc' (After Market Close), 'bmo' (Before Market Open), 'dmh' (During Market Hours)
+            is_amc = event['timing'] == 'amc'
+
+            price_reaction_day = earnings_day + timedelta(days=1) if is_amc else earnings_day
             entry_day = earnings_day - timedelta(days=1)
+            exit_day = price_reaction_day
+            
             if entry_day.weekday() >= 5: entry_day -= timedelta(days=entry_day.weekday() - 4)
-            exit_day = earnings_day + timedelta(days=1)
             if exit_day.weekday() >= 5: exit_day += timedelta(days=7 - exit_day.weekday())
+
             entry_time = config.MARKET_TIMEZONE.localize(datetime.combine(entry_day, datetime.min.time()) + timedelta(hours=15, minutes=45))
             exit_time = config.MARKET_TIMEZONE.localize(datetime.combine(exit_day, datetime.min.time()) + timedelta(hours=9, minutes=45))
+            
             if entry_time < datetime.now(config.MARKET_TIMEZONE):
                 print(f"Skipping {ticker}: Entry time {entry_time.strftime('%Y-%m-%d %H:%M')} is in the past.")
                 continue
+                
             trade = {
                 'ticker': ticker, 'status': 'pending_entry', 'entry_time': entry_time,
                 'exit_time': exit_time, 'position': 0, 'entry_order_id': None,
@@ -181,6 +183,7 @@ def populate_trade_schedule(bot):
             print(f"Could not schedule trade for {ticker}: {e}")
 
 def main():
+    # ... (The main function remains exactly the same as before) ...
     print("--- Starting Earnings Calendar Spread Bot ---")
     bot = IBKRBot()
     try:
@@ -210,7 +213,7 @@ def main():
                         cost_per_spread = natural_price * 100
                         num_contracts = int(risk_amount // cost_per_spread) if cost_per_spread > 0 else 0
                         if num_contracts > 0:
-                            print(f"Position Sizing for {trade['ticker']}: Risk Amount ${risk_amount:,.2f}, Contracts: {num_contracts}")
+                            print(f"  - Sizing: Allocating ${risk_amount:,.2f} -> Trading {num_contracts} contracts.")
                             entry_order_id = bot.place_order(trade['contract'], "BUY", num_contracts, config.ORDER_TYPE, natural_price)
                             trade['entry_order_id'] = entry_order_id
                         else:
